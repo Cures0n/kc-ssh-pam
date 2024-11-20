@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/Cureson/kc-ssh-pam v0.1.4
+	github.com/Cures0n/kc-ssh-pam v0.1.4
 	github.com/spf13/viper v1.15.0
 )
 

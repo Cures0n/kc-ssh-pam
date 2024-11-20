@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Cureson/kc-ssh-pam/internal/conf"
+	"github.com/Cures0n/kc-ssh-pam/internal/conf"
 )
 
 func printHelpMessage() {
