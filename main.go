@@ -3,10 +3,11 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 
-	"github.com/kha7iq/kc-ssh-pam/internal/auth"
-	"github.com/kha7iq/kc-ssh-pam/internal/conf"
-	"github.com/kha7iq/kc-ssh-pam/internal/flags"
+	"github.com/Cures0n/kc-ssh-pam/internal/auth"
+	"github.com/Cures0n/kc-ssh-pam/internal/conf"
+	"github.com/Cures0n/kc-ssh-pam/internal/flags"
 )
 
 var (
@@ -24,6 +25,7 @@ func main() {
 
 	providerEndpoint := c.Endpoint + "/realms/" + c.Realm
 	username := os.Getenv("PAM_USER")
+    as_code := strings.Split(os.Getenv("HOSTNAME"), "-")[0]
 
 	// Analyze the input from stdIn and split the password if it containcts "/"  return otp and pass
 	password, otp, err := auth.ReadPasswordWithOTP()
@@ -50,5 +52,28 @@ func main() {
 		log.Fatalf("Failed to verify token %v for user %v\n", err, username)
 		os.Exit(3)
 	}
+
+    // Получение ID группы
+     groupID, err := auth.GetGroupID(providerEndpoint, accessToken, as_code)
+     if err != nil {
+        log.Fatalf("Ошибка получения groupID: %v\n", err)
+        os.Exit(3)
+     }
+
+     // Проверка членства пользователя в группе
+     isUserMember, err := auth.IsUserInGroup(providerEndpoint, accessToken, groupID, username)
+     if err != nil {
+        log.Fatalf("Ошибка проверки членства: %v\n", err)
+        os.Exit(3)
+     }
+    //  fmt.Printf(isUserMember)
+
+     if isUserMember {
+        log.Printf("User %s is a member of %s_GPB_USER group\n", username, strings.ToUpper(as_code))
+     } else {
+        log.Printf("User %s is NOT a member of %s_GPB_USER group\n", username, strings.ToUpper(as_code))
+        os.Exit(3)
+     }
+
 	log.Println("Token acquired and verified Successfully for user -", username)
 }

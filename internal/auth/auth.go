@@ -198,3 +198,79 @@ func ReadPasswordWithOTP() (string, string, error) {
 
 	return password, otp, nil
 }
+
+func GetGroupID(kcURL, accessToken, acCode string) (string, error) {
+ client := &http.Client{}
+ url := fmt.Sprintf("%s/groups", kcURL)
+
+ req, err := http.NewRequest("GET", url, nil)
+ if err != nil {
+  return "", err
+ }
+ req.Header.Set("Accept", "application/json")
+ req.Header.Set("Authorization", "Bearer "+accessToken)
+ req.Header.Set("cache-control", "no-cache")
+
+ resp, err := client.Do(req)
+ if err != nil {
+  return "", err
+ }
+ defer resp.Body.Close()
+
+ if resp.StatusCode != http.StatusOK {
+  return "", fmt.Errorf("неудачный запрос: %s", resp.Status)
+ }
+
+ var groups []struct {
+  ID  string `json:"id"`
+  Name string `json:"name"`
+ }
+ if err := json.NewDecoder(resp.Body).Decode(&groups); err != nil {
+  return "", err
+ }
+
+ groupName := fmt.Sprintf("%s_GPB_USER", strings.ToUpper(acCode))
+ for _, group := range groups {
+  if group.Name == groupName {
+   return group.ID, nil
+  }
+ }
+ return "", fmt.Errorf("группа %s не найдена", groupName)
+}
+
+func IsUserInGroup(kcURL, accessToken, groupID, username string) (bool, error) {
+ client := &http.Client{}
+ url := fmt.Sprintf("%s/groups/%s/members", kcURL, groupID)
+
+ req, err := http.NewRequest("GET", url, nil)
+ if err != nil {
+  return false, err
+ }
+ req.Header.Set("Accept", "application/json")
+ req.Header.Set("Authorization", "Bearer "+accessToken)
+ req.Header.Set("cache-control", "no-cache")
+
+ resp, err := client.Do(req)
+ if err != nil {
+  return false, err
+ }
+ defer resp.Body.Close()
+
+ if resp.StatusCode != http.StatusOK {
+  return false, fmt.Errorf("неудачный запрос: %s", resp.Status)
+ }
+
+ var users []struct {
+  Username string `json:"username"`
+ }
+ if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
+  return false, err
+ }
+
+ for _, user := range users {
+  if user.Username == username {
+   return true, nil
+  }
+ }
+ return false, nil
+}
