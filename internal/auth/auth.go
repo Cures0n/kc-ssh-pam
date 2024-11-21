@@ -26,6 +26,17 @@ type Token struct {
 	Expiry       time.Time `json:"expiry,omitempty"`
 }
 
+type Userinfo struct {
+	Id  string    `json:"sub"`
+	EmailVerified    string    `json:"email_verified"`
+	Name string    `json:"name"`
+	Groups       []string `json:"groups"`
+	PreferredUsername  string    `json:"preferred_username"`
+	GivenName    string    `json:"given_name"`
+	FamilyName  string    `json:"family_name"`
+	Email    string    `json:"email"`
+}
+
 type OIDCProviderInfo struct {
 	Issuer      string      `json:"issuer"`
 	AuthURL     string      `json:"authorization_endpoint"`
@@ -199,78 +210,37 @@ func ReadPasswordWithOTP() (string, string, error) {
 	return password, otp, nil
 }
 
-func GetGroupID(kcURL, accessToken, acCode string) (string, error) {
- client := &http.Client{}
- url := fmt.Sprintf("%s/groups", kcURL)
+func IsUserInGroup(kcURL, accessToken, as_code string) (bool, error) {
+    client := &http.Client{}
+    url := fmt.Sprintf("%s/protocol/openid-connect/userinfo", kcURL)
 
- req, err := http.NewRequest("GET", url, nil)
- if err != nil {
-  return "", err
- }
- req.Header.Set("Accept", "application/json")
- req.Header.Set("Authorization", "Bearer "+accessToken)
- req.Header.Set("cache-control", "no-cache")
+    req, err := http.NewRequest("GET", url, nil)
+    if err != nil {
+        return false, err
+    }
+    req.Header.Set("Accept", "application/json")
+    req.Header.Set("Authorization", "Bearer "+accessToken)
+    req.Header.Set("cache-control", "no-cache")
 
- resp, err := client.Do(req)
- if err != nil {
-  return "", err
- }
- defer resp.Body.Close()
+    resp, err := client.Do(req)
+    if err != nil {
+        return false, err
+    }
+    defer resp.Body.Close()
 
- if resp.StatusCode != http.StatusOK {
-  return "", fmt.Errorf("неудачный запрос: %s", resp.Status)
- }
+    if resp.StatusCode != http.StatusOK {
+        return false, fmt.Errorf("неудачный запрос: %s", resp.Status)
+    }
+    groupName := fmt.Sprintf("%s_GPB_USER", strings.ToUpper(acCode))
+    var userinfo Userinfo
+    if err := json.NewDecoder(resp.Body).Decode(&userinfo.Groups); err != nil {
+        return "", err
+    }
 
- var groups []struct {
-  ID  string `json:"id"`
-  Name string `json:"name"`
- }
- if err := json.NewDecoder(resp.Body).Decode(&groups); err != nil {
-  return "", err
- }
-
- groupName := fmt.Sprintf("%s_GPB_USER", strings.ToUpper(acCode))
- for _, group := range groups {
-  if group.Name == groupName {
-   return group.ID, nil
-  }
- }
- return "", fmt.Errorf("группа %s не найдена", groupName)
-}
-
-func IsUserInGroup(kcURL, accessToken, groupID, username string) (bool, error) {
- client := &http.Client{}
- url := fmt.Sprintf("%s/groups/%s/members", kcURL, groupID)
-
- req, err := http.NewRequest("GET", url, nil)
- if err != nil {
-  return false, err
- }
- req.Header.Set("Accept", "application/json")
- req.Header.Set("Authorization", "Bearer "+accessToken)
- req.Header.Set("cache-control", "no-cache")
-
- resp, err := client.Do(req)
- if err != nil {
-  return false, err
- }
- defer resp.Body.Close()
-
- if resp.StatusCode != http.StatusOK {
-  return false, fmt.Errorf("неудачный запрос: %s", resp.Status)
- }
-
- var users []struct {
-  Username string `json:"username"`
- }
- if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
-  return false, err
- }
-
- for _, user := range users {
-  if user.Username == username {
-   return true, nil
-  }
- }
- return false, nil
+    for _, group := range userinfo.Groups {
+        if group.Name == groupName {
+            return group.ID, nil
+            }
+    }
+    return "", fmt.Errorf("группа %s не найдена", groupName)
 }
