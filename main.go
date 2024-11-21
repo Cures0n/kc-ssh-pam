@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"fmt"
 
 	"github.com/Cures0n/kc-ssh-pam/internal/auth"
 	"github.com/Cures0n/kc-ssh-pam/internal/conf"
@@ -27,6 +28,7 @@ func main() {
 	username := os.Getenv("PAM_USER")
     hostname, err := os.Hostname()
     as_code := strings.Split(hostname, "-")[0]
+    groupName := fmt.Sprintf("%s_GPB_USER", strings.ToUpper(as_code))
 
 	// Analyze the input from stdIn and split the password if it containcts "/"  return otp and pass
 	password, otp, err := auth.ReadPasswordWithOTP()
@@ -54,18 +56,17 @@ func main() {
 		os.Exit(3)
 	}
 
-
      // Проверка членства пользователя в группе
-     isUserMember, err := auth.IsUserInGroup(providerEndpoint, accessToken, as_code)
+     isUserMember, err := auth.IsUserInGroup(provider.UserInfoURL, accessToken, groupName)
      if err != nil {
         log.Fatalf("Ошибка проверки членства: %v\n", err)
         os.Exit(3)
      }
 
      if isUserMember {
-        log.Printf("User %s is a member of %s_GPB_USER group\n", username, strings.ToUpper(as_code))
+        log.Printf("User %s is a member of %s group\n", username, groupName)
      } else {
-        log.Printf("User %s is NOT a member of %s_GPB_USER group\n", username, strings.ToUpper(as_code))
+        log.Printf("User %s is NOT a member of %s group\n", username, groupName)
         os.Exit(3)
      }
 

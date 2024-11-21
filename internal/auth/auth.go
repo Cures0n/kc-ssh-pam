@@ -28,7 +28,7 @@ type Token struct {
 
 type Userinfo struct {
 	Id  string    `json:"sub"`
-	EmailVerified    string    `json:"email_verified"`
+	EmailVerified    bool    `json:"email_verified"`
 	Name string    `json:"name"`
 	Groups       []string `json:"groups"`
 	PreferredUsername  string    `json:"preferred_username"`
@@ -210,11 +210,10 @@ func ReadPasswordWithOTP() (string, string, error) {
 	return password, otp, nil
 }
 
-func IsUserInGroup(kcURL, accessToken, as_code string) (bool, error) {
+func IsUserInGroup(kcURL, accessToken, groupName string) (bool, error) {
     client := &http.Client{}
-    url := fmt.Sprintf("%s/protocol/openid-connect/userinfo", kcURL)
 
-    req, err := http.NewRequest("GET", url, nil)
+    req, err := http.NewRequest("GET", kcURL, nil)
     if err != nil {
         return false, err
     }
@@ -231,16 +230,16 @@ func IsUserInGroup(kcURL, accessToken, as_code string) (bool, error) {
     if resp.StatusCode != http.StatusOK {
         return false, fmt.Errorf("неудачный запрос: %s", resp.Status)
     }
-    groupName := fmt.Sprintf("%s_GPB_USER", strings.ToUpper(acCode))
+
     var userinfo Userinfo
-    if err := json.NewDecoder(resp.Body).Decode(&userinfo.Groups); err != nil {
-        return "", err
+    if err := json.NewDecoder(resp.Body).Decode(&userinfo); err != nil {
+        return false, nil
     }
 
     for _, group := range userinfo.Groups {
-        if group.Name == groupName {
-            return group.ID, nil
+        if group == groupName {
+            return true, nil
             }
     }
-    return "", fmt.Errorf("группа %s не найдена", groupName)
+    return false, nil
 }
